@@ -1,68 +1,72 @@
-let appInfo = getAppInfo("Reminders")
+// Variables used by Scriptable.
+// These must be at the very top of the file. Do not edit.
+// icon-color: red; icon-glyph: file-alt;
+/*
+List Mania! app
+Customizable list manager.
+Version: 0.1
+Author: @furlan
+Changelog at the end of the file.
+*/
 
-let alert = new Alert()
-alert.addTextField("Alert!")
-alert.addAction("Go!")
-
+let appInfo = getAppInfo("Books")
 
 let table = new UITable()
 
-updateTable(appInfo.app.rootPage).then(() => {table.reload()})  
+updateTable(appInfo.app.rootPage).then(() => {table.reload()}) 
 
 await table.present(true)
 
 Script.complete()
 
 async function updateTable(path) {
+  const entityName = parsePath(path, "entityName")
+  const id = parsePath(path, "id")
+  const entity = importModule(appInfo.app.model)  
   
-  const parsedPath = path.split("/")
-  
-  let entityName
-  let id
-  if (parsedPath.length === 1 ) {
-    entityName = parsedPath[0] 
-  } else {
-    id = parsedPath[0]
-    entityName = parsedPath[1] 
-  }
-  let entity = importModule(appInfo.app.model)  
-  
-  let rowsData = await entity.getRowsData(id, entityName)
+  const rowsData = await entity.getRowsData(id, entityName)
   
   // headers
-  if (appInfo.pages[entityName].cells.headers.length > 0) {
+  if (hasHeader(entityName) === true) {
     let row = new UITableRow()
-    for (header of appInfo.pages[entityName].cells.headers) {
-      row.addText(header.title, header.subtitle)
+    for (let cell of appInfo.pages[entityName].cells) {
+      row.addText(cell.headerTitle, cell.headerSubtitle)
       row.isHeader = true
     }
     table.addRow(row)
   }
   
+  // contents
   for (let rowData of rowsData) {
     row = new UITableRow()
     row.dismissOnSelect = false
 
-    for (let cell of appInfo.pages[entityName].cells.contents) {
-      // to-do: subtitle
-      row.addText(rowData[cell.map].toString())
+    for (let cell of appInfo.pages[entityName].cells) {
+      if (cell.editable === true) {
+        let oCell = row.addButton(rowData[cell.rowTitle].toString())
+        oCell.onTap = async () => {
+          table.removeAllRows() 
+          entity.onTap(cell.rowTitle)
+            .then(() => updateTable(entityName))
+            .then(() => table.reload())
+        } 
+       } else {
+       // to-do: subtitle 
+       row.addText(rowData[cell.rowTitle].toString())
+      }
     }
     
     row.onSelect = async (number) => {
-      if (appInfo.pages[entityName].cells.headers.length > 0) {
-        number--
+      if (hasHeader(entityName) === true) { 
+        number--  // because the header
       }
+      
       if (appInfo.pages[entityName].onSelect !== undefined) {
-        table.removeAllRows()
-//         console.log("pre-update")
-//         alert.present().then(() => {table.reload()})       
+        table.removeAllRows()    
         updateTable(number + appInfo.pages[entityName].onSelect)
           .then(() => {
             table.reload()
-//             console.log("fulfill reload")
            })
-//         table.reload()
-//         console.log("pos-reload")
       }    
     }
     row.cellSpacing = 10
@@ -71,15 +75,13 @@ async function updateTable(path) {
   
   if (appInfo.pages[entityName].onBack !== undefined) {
     let row = new UITableRow()
-    let back = row.addButton("⏪ Back")
-    back.onTap = async () => {
+    let oCell = row.addButton("⏪ Back")
+    oCell.onTap = async () => {
       await table.removeAllRows()
       updateTable(appInfo.pages[entityName].onBack).then(() => table.reload())
-//       await table.reload()
     }
     await table.addRow(row)
   }
-//   table.reload()
 }
 
 function getAppInfo(app) {  
@@ -94,3 +96,22 @@ function getAppInfo(app) {
   return appInfo
 }
 
+function hasHeader(entityName) {
+  return appInfo.pages[entityName].showHeader
+}
+
+function parsePath(path, element) {
+  const parsedPath = path.split("/")
+  
+  let entityName
+  let id
+  if (parsedPath.length === 1 ) {
+    entityName = parsedPath[0] 
+  } else {
+    id = parsedPath[0]
+    entityName = parsedPath[1] 
+  }
+  
+  if (element === "id") {return id}
+  if (element === "entityName") {return entityName}
+}
