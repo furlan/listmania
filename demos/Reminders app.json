@@ -1,0 +1,22 @@
+{
+  "app": {
+    "rootPage": "Lists",
+    "model": "Reminders.model"
+  },
+  "pages": {
+    "Lists": {
+      "cells": [
+        "Name",
+        "Total"
+      ],
+      "onSelect": "/Reminders"
+    },
+    "Reminders": {
+      "cells": [
+        "title",
+        "dueDate"
+      ],
+      "onBack": "Lists"
+    }
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "app": {
+    "rootPage": "Books",
+    "model": "Books.model"
+  },
+  "pages": {
+    "Books": {
+      "cells": [
+        "Title"
+      ],
+      "onSelect": "/Authors"
+    },
+    "Authors": {
+      "cells": [
+        "Name"
+      ],
+      "onBack": "Books"
+    }
+  }
+}
