@@ -1,6 +1,3 @@
-// Variables used by Scriptable.
-// These must be at the very top of the file. Do not edit.
-// icon-color: red; icon-glyph: magic;
 let appInfo = getAppInfo("Reminders")
 
 let alert = new Alert()
@@ -32,22 +29,29 @@ async function updateTable(path) {
   
   let rowsData = await entity.getRowsData(id, entityName)
   
-  let row = new UITableRow()
-  row.addText("header", "subtitle")
-  row.isHeader = true
-  table.addRow(row)
+  // headers
+  if (appInfo.pages[entityName].cells.headers.length > 0) {
+    let row = new UITableRow()
+    for (header of appInfo.pages[entityName].cells.headers) {
+      row.addText(header.title, header.subtitle)
+      row.isHeader = true
+    }
+    table.addRow(row)
+  }
   
   for (let rowData of rowsData) {
     row = new UITableRow()
     row.dismissOnSelect = false
 
-    for (let cell of appInfo.pages[entityName].cells) {
-      let oCell = UITableCell.text(rowData[cell].toString())
-      row.addCell(oCell)
+    for (let cell of appInfo.pages[entityName].cells.contents) {
+      // to-do: subtitle
+      row.addText(rowData[cell.map].toString())
     }
     
-    row.onSelect = async (number) => {  
-      number--  // because the header
+    row.onSelect = async (number) => {
+      if (appInfo.pages[entityName].cells.headers.length > 0) {
+        number--
+      }
       if (appInfo.pages[entityName].onSelect !== undefined) {
         table.removeAllRows()
 //         console.log("pre-update")
