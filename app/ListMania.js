@@ -1,7 +1,6 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: red; icon-glyph: file-alt;
-
 /*
 Listmania framework
 Customizable list manager for iphoneOS and iPadOS.
@@ -87,7 +86,11 @@ async function updateTable(path, mode) {
       row.isHeader = true
       oCell = row.addButton("Add row 🆕")
       oCell.onTap = async () => {
-        addRow(pageName)
+        let newRowData = {}
+        for (let cell of appInfo.pages[pageName].cells) {
+          newRowData[cell.rowTitle] = "Enter new value"
+        }
+        addRow(pageName, newRowData)
       }
       index = addRowAction(row, index)
     }
@@ -233,8 +236,18 @@ async function showRow(pageName, id) {
    
 }
 
-async function addRow(pageName) {  
-  let showRowTable = new UITable()
+async function addRow(pageName, newRowData) {  
+  let addNewRowTable = new UITable()
+  
+  await updateAddNewRowTable(addNewRowTable, pageName, newRowData)
+  
+  addNewRowTable.present()
+   
+}
+
+async function updateAddNewRowTable(addNewRowTable, pageName, newRowData) { 
+  addNewRowTable.removeAllRows()
+  let rowData = newRowData
   
   let row, oCell
 //   row.addButton("Back")
@@ -242,27 +255,37 @@ async function addRow(pageName) {
   for (let cell of appInfo.pages[pageName].cells) {
     row = new UITableRow()
     row.addText(cell.headerTitle + ":")
-    oCell = row.addButton("Enter new value")
-    let headerTitle = cell.headerTitle
-    oCell.onTap = () => {  
-      let edit = new Alert()
-
-      edit.title = "Value for " + pageName + ">" + cell.headerTitle
-      edit.message = "Enter new values"
-      edit.addTextField("new value")
-
-      edit.addAction("OK")
-      edit.addCancelAction("Cancel")
-      let action = edit.present()
-      
-      showRowTable.reload()
-      
+    oCell = row.addButton(rowData[cell.rowTitle])
+//     let headerTitle = cell.headerTitle
+    oCell.onTap = () => {
+      console.log("onTap cell")
+      editNewCell(pageName, cell.headerTitle, rowData[cell.rowTitle])
+        .then((newValue) => {
+          console.log("new value: " + newValue)
+          rowData[cell.rowTitle] = newValue
+          updateAddNewRowTable(addNewRowTable, pageName, rowData)
+        }).then(() => addNewRowTable.reload())
     }
-    showRowTable.addRow(row)
+    addNewRowTable.addRow(row)
   }
+}
+
+async function editNewCell(pageName, rowTitle, value) {
+  console.log("editNewCell")
+  let edit = new Alert()
   
-  showRowTable.present()
-   
+  edit.title = "Value for " + pageName
+  edit.message = "Enter new values"
+  edit.addTextField(value)
+  
+  edit.addAction("OK")
+  edit.addCancelAction("Cancel")
+  let action = await edit.present()
+  console.log("action: " + action)
+  console.log("field value: " + edit.textFieldValue(0))
+  if (action !== -1) { return edit.textFieldValue(0) }
+  if (action === -1) { return value }
+  
 }
 
 async function editCell(pageName, rowTitle, id) {
@@ -384,5 +407,6 @@ function parsePath(path, element) {
 function isPageEditable(pageName) {
   return appInfo.pages[pageName].editable
 }
+
 
 
