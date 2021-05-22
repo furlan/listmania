@@ -1,88 +1,353 @@
 // Variables used by Scriptable.
 // These must be at the very top of the file. Do not edit.
 // icon-color: red; icon-glyph: file-alt;
+
 /*
-List Mania! app
-Customizable list manager.
+Listmania framework
+Customizable list manager for iphoneOS and iPadOS.
+(and you think you are free of Javascrip framework here...)
 Version: 0.1
 Author: @furlan
 Changelog at the end of the file.
 */
 
-let appInfo = getAppInfo("Books")
+const appName = Script.name()
+const appInfo = getAppInfo(appName)
+const model = importModule("LM" + appName + ".model")
 
 let table = new UITable()
 
-updateTable(appInfo.app.rootPage).then(() => {table.reload()}) 
+updateTable(appInfo.app.rootPage, appInfo.app.startUpMode).then(() => {table.reload()}) 
 
 await table.present(true)
 
 Script.complete()
 
-async function updateTable(path) {
-  const entityName = parsePath(path, "entityName")
+async function updateTable(path, mode) {
+  table.removeAllRows()
+  const pageName = parsePath(path, "pageName")
   const id = parsePath(path, "id")
-  const entity = importModule(appInfo.app.model)  
+  let index = 0
+  let row
   
-  const rowsData = await entity.getRowsData(id, entityName)
+  const rowsData = await model.getRowsData(pageName, id)
+  
+  if (isPageEditable(pageName)) {
+//     let row = new UITableRow()
+//     row.isHeader = true
+//     row.addText("Actions", "Actions on content.")
+    
+//     if (mode === 'read') {
+//       let oCell = row.addButton("Edit 📝")
+//       let i = index
+//       oCell.onTap = async () => {
+//         table.removeAllRows() 
+//         updateTable(pageName, 'edit').then(() => {table.reload()})
+//       }
+//     }
+//     if (mode === 'edit') {
+//       let oCell = row.addButton("Read ⏹")
+//       let i = index
+//       oCell.onTap = async () => {
+//         table.removeAllRows() 
+//         updateTable(pageName, 'read').then(() => {table.reload()})
+//       }
+//     }
+    if (hasToShow("page-header", mode)) {
+      row = new UITableRow()  
+      row.isHeader = true
+      row.addText(appName, "Books > Authors")
+      index = addRowAction(row, index)
+    }
+    
+    if (hasToShow("unhide-actions-button", mode)) {
+      row = new UITableRow()  
+      row.isHeader = true
+      oCell = row.addButton("ACTIONS 🔽")
+      oCell.onTap = async () => {
+        updateTable(pageName, 'show-actions').then(() => {table.reload()})
+      }
+      index = addRowAction(row, index) // action button
+    }
+      
+    if (hasToShow("hide-actions-button", mode)) {
+      row = new UITableRow()  
+      row.isHeader = true
+//       row.backgroundColor = '#000000'
+      oCell = row.addButton("HIDE ACTIONS 🔼")
+      oCell.onTap = async () => {
+        updateTable(pageName, 'read-only').then(() => {table.reload()})
+      }
+      index = addRowAction(row, index)
+    }
+    
+
+    if (hasToShow("add-row-button", mode)) {  
+      row = new UITableRow()  
+      row.isHeader = true
+      oCell = row.addButton("Add row 🆕")
+      oCell.onTap = async () => {
+        addRow(pageName)
+      }
+      index = addRowAction(row, index)
+    }
+    
+    if (hasToShow("edit-rows-button", mode)) {  
+      row = new UITableRow()  
+      row.isHeader = true
+      oCell = row.addButton("Edit rows 📝")
+      oCell.onTap = async () => {
+        updateTable(pageName, 'edit-rows').then(() => {table.reload()})
+      }
+      index = addRowAction(row, index)
+    }
+    
+    if (hasToShow("delete-rows-button", mode)) {  
+      row = new UITableRow()  
+      row.isHeader = true
+      oCell = row.addButton("Delete rows ❌")
+      oCell.onTap = async () => {
+        updateTable(pageName, 'delete-rows').then(() => {table.reload()})
+      }
+      index = addRowAction(row, index)
+    }
+    
+
+  }
+  
   
   // headers
-  if (hasHeader(entityName) === true) {
-    let row = new UITableRow()
-    for (let cell of appInfo.pages[entityName].cells) {
-      row.addText(cell.headerTitle, cell.headerSubtitle)
-      row.isHeader = true
+  if (hasHeader(pageName)) {
+    row = new UITableRow()
+    row.isHeader = true
+    if (hasToShow("edit-row-header", mode)) {
+      row.addText("Edit", "Edit row fields")
     }
-    table.addRow(row)
+    
+    if (hasToShow("delete-row-header", mode)) {
+      row.addText("Delete", "Delete row")
+    }
+    
+    for (let cell of appInfo.pages[pageName].cells) {
+      row.addText(cell.headerTitle, cell.headerSubtitle)
+    }
+//     if (isPageEditable(pageName)) {
+//       row.addText("Actions", "Edit row fields")
+//     }
+//     table.addRow(row)  
+    index = addRowAction(row, index)
   }
   
   // contents
+
   for (let rowData of rowsData) {
     row = new UITableRow()
     row.dismissOnSelect = false
-
-    for (let cell of appInfo.pages[entityName].cells) {
-      if (cell.editable === true) {
-        let oCell = row.addButton(rowData[cell.rowTitle].toString())
-        oCell.onTap = async () => {
-          table.removeAllRows() 
-          entity.onTap(cell.rowTitle)
-            .then(() => updateTable(entityName))
+    let oCell
+    
+    if (hasToShow("delete-row-button", mode)) {
+      oCell = row.addButton("❌")
+      let i = index
+      oCell.onTap = async () => {
+          await editRow(pageName, i)
+            .then(() => updateTable(pageName))
             .then(() => table.reload())
-        } 
-       } else {
-       // to-do: subtitle 
-       row.addText(rowData[cell.rowTitle].toString())
       }
     }
+        
+//       {
+//       oCell = row.addButton("📝")
+//       let i = index
+//         oCell.onTap = async () => {
+//           await editRow(pageName, i)
+//             .then(() => updateTable(pageName, mode))
+//             .then(() => table.reload())
+//         }
+//     }
     
-    row.onSelect = async (number) => {
-      if (hasHeader(entityName) === true) { 
-        number--  // because the header
-      }
+    for (let cell of appInfo.pages[pageName].cells) {  
+        let i = index
+        if (hasToShow("content-edit-cells", mode)) {  
+          oCell = row.addButton(rowData[cell.rowTitle].toString())
+          oCell.onTap = () => {  
+            editCell(pageName, cell.rowTitle, i)
+              .then(() => updateTable(pageName, mode))
+              .then(() => table.reload())
+          }
+      } else {
+        // to-do: subtitle
+        row.addText(rowData[cell.rowTitle].toString())
+        row.onSelect = async (number) => {
+          await showRow(pageName, i)
+        }
+    }
       
-      if (appInfo.pages[entityName].onSelect !== undefined) {
-        table.removeAllRows()    
-        updateTable(number + appInfo.pages[entityName].onSelect)
-          .then(() => {
-            table.reload()
-           })
-      }    
+      
+  
     }
     row.cellSpacing = 10
-    table.addRow(row)
+    index = addRowData(row, index)
+//     table.addRow(row)
+//     index++
   }
   
-  if (appInfo.pages[entityName].onBack !== undefined) {
+  if (appInfo.pages[pageName].onBack !== undefined) {
     let row = new UITableRow()
     let oCell = row.addButton("⏪ Back")
     oCell.onTap = async () => {
       await table.removeAllRows()
-      updateTable(appInfo.pages[entityName].onBack).then(() => table.reload())
+      updateTable(appInfo.pages[pageName].onBack, mode).then(() => table.reload())
     }
-    await table.addRow(row)
+//     table.addRow(row)
+    index = addRowAction(row, index)
   }
 }
+
+function addRowData(row, index) {
+  table.addRow(row)
+  const i = index + 1
+  return i
+}
+
+function addRowAction(row, index) {
+  table.addRow(row)
+  return index
+}
+
+async function showRow(pageName, id) {  
+  let rowData = await model.getRowData(pageName, id)
+    
+  let showRowTable = new UITable()
+  
+  let row
+//   row.addButton("Back")
+//   showRowTable.addRow(row)  
+  for (let cell of appInfo.pages[pageName].cells) {
+    row = new UITableRow()
+    row.addText(cell.headerTitle + ":")
+    row.addText(rowData[cell.rowTitle])
+    showRowTable.addRow(row)
+  }
+  
+  showRowTable.present()
+   
+}
+
+async function addRow(pageName) {  
+  let showRowTable = new UITable()
+  
+  let row, oCell
+//   row.addButton("Back")
+//   showRowTable.addRow(row)  
+  for (let cell of appInfo.pages[pageName].cells) {
+    row = new UITableRow()
+    row.addText(cell.headerTitle + ":")
+    oCell = row.addButton("Enter new value")
+    let headerTitle = cell.headerTitle
+    oCell.onTap = () => {  
+      let edit = new Alert()
+
+      edit.title = "Value for " + pageName + ">" + cell.headerTitle
+      edit.message = "Enter new values"
+      edit.addTextField("new value")
+
+      edit.addAction("OK")
+      edit.addCancelAction("Cancel")
+      let action = edit.present()
+      
+      showRowTable.reload()
+      
+    }
+    showRowTable.addRow(row)
+  }
+  
+  showRowTable.present()
+   
+}
+
+async function editCell(pageName, rowTitle, id) {
+  console.log("::editRow (id): " + id + "/" + pageName)
+  let rowData = await model.getRowData(pageName, id)
+  let edit = new Alert()
+
+  for (let cell of appInfo.pages[pageName].cells) {
+    if (cell.rowTitle === rowTitle) {
+      edit.title = "Edit: " + pageName + ">" + cell.headerTitle
+      edit.message = "Enter new values"
+      edit.addTextField(cell.headerTitle, rowData[cell.rowTitle])
+    }
+  }
+  
+  edit.addAction("Save")
+  edit.addDestructiveAction("Delete Row")
+  edit.addCancelAction("Cancel")
+  let action = await edit.present()
+  
+  if (action === 0) {
+    for (let cell of appInfo.pages[pageName].cells) {
+      if (cell.rowTitle === rowTitle) {  
+        rowData[cell.rowTitle] = edit.textFieldValue(0)
+      }
+    }
+  }
+  return await model.setRowData(pageName, id, rowData) 
+}
+
+async function editRow(pageName, id) {
+  console.log("::editRow (id): " + id + "/" + pageName)
+  let rowData = await model.getRowData(pageName, id)
+  let edit = new Alert()
+  
+  edit.title = "Edit row for " + pageName
+  edit.message = "Enter new values"
+  
+  for (let cell of appInfo.pages[pageName].cells) {
+    edit.addTextField(cell.headerTitle, rowData[cell.rowTitle])
+  }
+  
+  edit.addAction("Save")
+  edit.addDestructiveAction("Delete Row")
+  edit.addCancelAction("Cancel")
+  let action = await edit.present()
+  
+  if (action === 0) {
+    let i = 0
+    for (let cell of appInfo.pages[pageName].cells) {
+      rowData[cell.rowTitle] = edit.textFieldValue(i)
+      i++
+    }
+  }
+  return await model.setRowData(pageName, id, rowData)
+}
+
+function hasToShow(element, mode) {
+  let modes = []
+  modes.push({"element": "page-header", "show": ["read-only", "show-actions", "edit-rows"]})
+  modes.push({"element": "unhide-actions-button", "show": ["read-only"]})
+  modes.push({"element": "hide-actions-button", "show": ["show-actions", "edit-rows"]})
+  modes.push({"element": "add-row-button", "show": ["show-actions", "edit-rows"]})
+  modes.push({"element": "edit-rows-button", "show": ["show-actions"]})
+  modes.push({"element": "delete-rows-button", "show": []})
+  modes.push({"element": "edit-row-button", "show": ["edit-rows"]})
+  modes.push({"element": "delete-row-button", "show": ["delete-rows"]})
+  
+//   modes.push({"element": "edit-row-header", "show": ["edit-rows"]})
+  modes.push({"element": "delete-row-header", "show": ["delete-rows"]})
+  
+  modes.push({"element": "content-edit-cells", "show": ["edit-rows"]})
+  
+  
+
+  for (let m of modes) {
+    if (m.element === element) {
+      for (s of m.show) {
+        if (s === mode) { return true }
+      }
+    }
+  }
+  return false
+}
+
 
 function getAppInfo(app) {  
   let fm = FileManager.iCloud();
@@ -96,22 +361,28 @@ function getAppInfo(app) {
   return appInfo
 }
 
-function hasHeader(entityName) {
-  return appInfo.pages[entityName].showHeader
+function hasHeader(pageName) {
+  return appInfo.pages[pageName].showHeader
 }
 
 function parsePath(path, element) {
   const parsedPath = path.split("/")
   
-  let entityName
+  let pageName
   let id
   if (parsedPath.length === 1 ) {
-    entityName = parsedPath[0] 
+    pageName = parsedPath[0] 
   } else {
     id = parsedPath[0]
-    entityName = parsedPath[1] 
+    pageName = parsedPath[1] 
   }
   
   if (element === "id") {return id}
-  if (element === "entityName") {return entityName}
+  if (element === "pageName") {return pageName}
 }
+
+function isPageEditable(pageName) {
+  return appInfo.pages[pageName].editable
+}
+
+
