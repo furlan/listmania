@@ -1,7 +1,3 @@
-// Variables used by Scriptable.
-// These must be at the very top of the file. Do not edit.
-// icon-color: red; icon-glyph: file-alt;
-/*
 /*
 Listmania framework
 Customizable list manager for iphoneOS and iPadOS.
@@ -14,12 +10,13 @@ Changelog at the end of the file.
 const appName = Script.name()
 const appInfo = getAppInfo(appName)
 const model = importModule("LM" + appName + ".model")
+const pathSeparator = "/"
 let editRowData
 let breadCrumbs = appName
 
 let table = new UITable()
 
-updateTable(appInfo.app.rootPage, appInfo.app.startUpMode).then(() => {table.reload()}) 
+updateTable(appInfo.app.rootPath, appInfo.app.startUpMode).then(() => {table.reload()}) 
 
 table.present(true)
 
@@ -27,103 +24,111 @@ Script.complete()
 
 async function updateTable(path, mode) {
   table.removeAllRows()
-  const pageName = parsePath(path, "pageName")
-  const id = parsePath(path, "id")
+  const pageName = getPageName(path)
   let index = 0
   let row
   
-  const rowsData = await model.getRowsData(pageName, id)
+  const rowsData = await model.getRowsData(path)
+//   console.log("rowsData = " + rowsData)
   
-  if (isPageEditable(pageName)) {
-//     let row = new UITableRow()
-//     row.isHeader = true
-//     row.addText("Actions", "Actions on content.")
-    
-//     if (mode === 'read') {
-//       let oCell = row.addButton("Edit 📝")
-//       let i = index
-//       oCell.onTap = async () => {
-//         table.removeAllRows() 
-//         updateTable(pageName, 'edit').then(() => {table.reload()})
-//       }
-//     }
-//     if (mode === 'edit') {
-//       let oCell = row.addButton("Read ⏹")
-//       let i = index
-//       oCell.onTap = async () => {
-//         table.removeAllRows() 
-//         updateTable(pageName, 'read').then(() => {table.reload()})
-//       }
-//     }
-    if (hasToShow("page-header", mode)) {
+    if (!hideListTitle(pageName)) {
       row = new UITableRow()  
       row.isHeader = true
       row.addText(appName, breadCrumbs)
       index = addRowAction(row, index)
     }
     
-    if (hasToShow("unhide-actions-button", mode)) {
+    
+    if (getListActions(pageName).length > 0 && mode === 'actions-hidden') {
       row = new UITableRow()  
       row.isHeader = true
       oCell = row.addButton("ACTIONS 🔽")
       oCell.onTap = async () => {
-        updateTable(path, 'show-actions').then(() => {table.reload()})
+        updateTable(path, 'actions-showed').then(() => {table.reload()})
       }
       index = addRowAction(row, index) // action button
+      
+      
     }
       
-    if (hasToShow("hide-actions-button", mode)) {
+    if (getListActions(pageName).length > 0 && mode === 'actions-showed') {
       row = new UITableRow()  
       row.isHeader = true
 //       row.backgroundColor = '#000000'
       oCell = row.addButton("HIDE ACTIONS 🔼")
       oCell.onTap = async () => {
-        updateTable(path, 'read-only').then(() => {table.reload()})
+        updateTable(path, 'actions-hidden').then(() => {table.reload()})
       }
       index = addRowAction(row, index)
-    }
-    
-
-    if (hasToShow("add-row-button", mode)) {  
-      row = new UITableRow()  
-      row.isHeader = true
-      oCell = row.addButton("Add row 🆕")
-      oCell.onTap = async () => {
-        let newRowData = {}
-        for (let cell of appInfo.pages[pageName].cells) {
-          newRowData[cell.rowTitle] = "?"
+        
+//       row = new UITableRow()  
+//       row.isHeader = true
+//       oCell = row.addButton("🆕 New row")
+//       oCell.onTap = async () => {
+//       let newData
+//         editRow(path + "/", newData)
+//               .then(() => { updateTable(path, mode) })
+//               .then(() => { table.reload() })
+//       }
+//       index = addRowAction(row, index)
+      
+      for (let action of getListActions(pageName)) {
+        row = new UITableRow()  
+        row.isHeader = true
+        oCell = row.addButton(action.title)
+        oCell.onTap = async () => {
+          console.log("list action - path: " + path + " controller: " + action.controller)
+          
+//           let comm = "model." + action.controller + "(path, editRowData)"  
+          eval(action.command)  
+//           editRow(path + "/", {}).then(() => { updateTable(path, mode) }).then(() => { table.reload() })
+          console.log("Eval ok: " + action.command)
+          
+          updateTable(path, mode).then(() => {table.reload()})
         }
-        addRow(pageName, newRowData)
-      }
-      index = addRowAction(row, index)
-    }
-    
-    if (hasToShow("edit-rows-button", mode)) {  
-      row = new UITableRow()  
-      row.isHeader = true
-      oCell = row.addButton("Edit rows 📝")
-      oCell.onTap = async () => {
-        updateTable(path, 'edit-rows').then(() => {table.reload()})
-      }
-      index = addRowAction(row, index)
-    }
-    
-    if (hasToShow("delete-rows-button", mode)) {  
-      row = new UITableRow()  
-      row.isHeader = true
-      oCell = row.addButton("Delete rows ❌")
-      oCell.onTap = async () => {
-        updateTable(path, 'delete-rows').then(() => {table.reload()})
       }
       index = addRowAction(row, index)
     }
     
 
-  }
+      
+//     if (hasToShow("add-row-button", mode)) {  
+//       row = new UITableRow()  
+//       row.isHeader = true
+//       oCell = row.addButton("Add row 🆕")
+//       oCell.onTap = async () => {
+//         let newRowData = {}
+//         for (let cell of appInfo.pages[pageName].cells) {
+//           newRowData[cell.rowTitle] = "?"
+//         }
+//         addRow(pageName, newRowData)
+//       }
+//       index = addRowAction(row, index)
+//     }
+//     
+//     if (hasToShow("edit-rows-button", mode)) {  
+//       row = new UITableRow()  
+//       row.isHeader = true
+//       oCell = row.addButton("Edit rows 📝")
+//       oCell.onTap = async () => {
+//         updateTable(path, 'edit-rows').then(() => {table.reload()})
+//       }
+//       index = addRowAction(row, index)
+//     }
+//     
+//     if (hasToShow("delete-rows-button", mode)) {  
+//       row = new UITableRow()  
+//       row.isHeader = true
+//       oCell = row.addButton("Delete rows ❌")
+//       oCell.onTap = async () => {
+//         updateTable(path, 'delete-rows').then(() => {table.reload()})
+//       }
+//       index = addRowAction(row, index)
+//     }
   
   
   // headers
-  if (hasHeader(pageName)) {
+  if (!hideListHeaders(pageName)) {
     row = new UITableRow()
     row.isHeader = true
     if (hasToShow("edit-row-header", mode)) {
@@ -151,16 +156,16 @@ async function updateTable(path, mode) {
     row.dismissOnSelect = false
     let oCell
     
-    if (hasToShow("delete-row-button", mode)) {
-      oCell = row.addButton("❌")
-      let i = index
-      oCell.onTap = async () => {
-          await editRow(pageName, i)
-            .then(() => updateTable(pageName))
-            .then(() => table.reload())
-      }
-    }
-        
+//     if (hasToShow("delete-row-button", mode)) {
+//       oCell = row.addButton("❌")
+//       let i = index
+//       oCell.onTap = async () => {
+//           await editRow(pageName, i)
+//             .then(() => updateTable(pageName))
+//             .then(() => table.reload())
+//       }
+//     }
+//         
 //       {
 //       oCell = row.addButton("📝")
 //       let i = index
@@ -171,36 +176,38 @@ async function updateTable(path, mode) {
 //         }
 //     }
     
-    for (let cell of appInfo.pages[pageName].cells) {  
+    for (let cell of getCells(pageName)) {  
         let i = index
-        if (hasToShow("content-edit-cells", mode)) {  
-          oCell = row.addButton(rowData[cell.rowTitle].toString())
-          oCell.onTap = () => {  
-            editCell(pageName, cell.rowTitle, i)
-              .then(() => updateTable(pageName, mode))
-              .then(() => table.reload())
-          }
-        } else {
+//         if (hasToShow("content-edit-cells", mode)) {  
+//           oCell = row.addButton(rowData[cell.rowTitle].toString())
+//           oCell.onTap = () => {  
+//             editCell(pageName, cell.rowTitle, i)
+//               .then(() => updateTable(pageName, mode))
+//               .then(() => table.reload())
+//           }
+//         } else {
           // to-do: subtitle
           if (cell.onTap !== undefined) {
             oCell = row.addButton("🔡 [list]")
             oCell.onTap = () => {
-//               console.log("navigate to " + i + cell.onTap)
-              updateTable(navTo(i, cell), mode).then(() => {table.reload()})
+//               console.log("navigate to: " + navTo(path, i, cell.onTap))
+              updateTable(navTo(path, i, cell.onTap), 'actions-hidden').then(() => {table.reload()})
             }
           } else {
             row.addText(rowData[cell.rowTitle].toString())
             row.onSelect = async (number) => {
-              await editRow(path + "/" + i, rowData)
+              editRow(path + "/" + i, rowData)
+                .then(() => {
+                  updateTable(path, 'actions-hidden')
+                })
+                .then(() => {table.reload()})
             }
           }
           
-        }
+//         }
     }
     row.cellSpacing = 10
     index = addRowData(row, index)
-//     table.addRow(row)
-//     index++
   }
   
   if (appInfo.pages[pageName].onBack !== undefined) {
@@ -210,12 +217,22 @@ async function updateTable(path, mode) {
       await table.removeAllRows()
       updateTable(navBack(path), mode).then(() => table.reload())
     }
-//     table.addRow(row)
     index = addRowAction(row, index)
   }
 }
+
+function getPageName(path) {
+  // Books/0/Authors --> Authors
+  const parsedPath = path.split("/")
   
+  if (isNaN(parsedPath[parsedPath.length - 1])) { return parsedPath[parsedPath.length - 1] }
+  if (isNaN(parsedPath[parsedPath.length - 2])) { return parsedPath[parsedPath.length - 2] }
+  
+  return -1
+}
+
 function parsePath(path, element) {
+  // Books/0/Authors --> Authors
   const parsedPath = path.split("/")
   
   let pageName
@@ -231,19 +248,19 @@ function parsePath(path, element) {
   if (element === "pageName") {return pageName}
 }
 
-function navTo(id, cell) {
-  breadCrumbs +=  cell.onTap 
-  return id + cell.onTap
+function navTo(path, id, page) {
+  breadCrumbs +=  pathSeparator + page 
+  return path + pathSeparator + id + pathSeparator + page
 }
 
 function navBack(path) {
-  const pageName = parsePath(path, "pageName")
+  const pageName = getPageName(path)
   if (appInfo.pages[pageName].onBack !== undefined && appInfo.pages[pageName].onBack !== null ) {
-    let pages = breadCrumbs.split("/")
+    let pages = breadCrumbs.split(pathSeparator)
     pages.pop()
     breadCrumbs = ""
     for (page of pages) {
-      breadCrumbs += page + "/"
+      breadCrumbs += page + pathSeparator
     }
     breadCrumbs = breadCrumbs.slice(0, breadCrumbs.length - 1)
     return appInfo.pages[pageName].onBack
@@ -262,32 +279,33 @@ function addRowAction(row, index) {
   return index
 }
 
-async function showRow(pageName, id) {  
-  let rowData = await model.getRowData(pageName, id)
-    
-  let showRowTable = new UITable()
-  
-  let row
+// async function showRow(pageName, id) {  
+//   let rowData = await model.getRowData(pageName, id)
+//     
+//   let showRowTable = new UITable()
+//   
+//   let row
 //   row.addButton("Back")
 //   showRowTable.addRow(row)  
-  for (let cell of appInfo.pages[pageName].cells) {
-    row = new UITableRow()
-    row.addText(cell.headerTitle + ":")
-    row.addText(rowData[cell.rowTitle])
-    showRowTable.addRow(row)
-  }
-  
-  showRowTable.present()
-   
-}
+//   for (let cell of appInfo.pages[pageName].cells) {
+//     row = new UITableRow()
+//     row.addText(cell.headerTitle + ":")
+//     row.addText(rowData[cell.rowTitle])
+//     showRowTable.addRow(row)
+//   }
+//   
+//   showRowTable.present()
+//    
+// }
 
-// WIP
+// EDIT ROW >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
 async function editRow(path, rowData) {  
   let editRowTable = new UITable()
-//   console.log("editRow")
-  updateEditRowTable(editRowTable, path, rowData, "Enter new values.")
+//   console.log("editRow: " + path)
+//   console.log(rowData)
+  updateEditRowTable(editRowTable, path, rowData, "Enter new values.") 
   
-  editRowTable.present()
+  return editRowTable.present()
    
 }
 
@@ -295,8 +313,8 @@ async function updateEditRowTable(editRowTable, path, initialRowData, message) {
   editRowTable.removeAllRows()
   editRowData = initialRowData
   const id = parsePath(path, "id")
-  const pageName = parsePath(path, "pageName")
-//   console.log(path + "|" + pageName + id)
+  const pageName = getPageName(path)
+//   console.log(path + "|" + pageName)
 
   
   let row  = new UITableRow()
@@ -305,31 +323,46 @@ async function updateEditRowTable(editRowTable, path, initialRowData, message) {
   editRowTable.addRow(row)
   
   row  = new UITableRow()
-  let oCell
-  oCell = row.addButton("💾 Save changes")
-  oCell.onTap = () => {
-    console.log("save - path: " + path)
-    model.setRowData(path, editRowData)
+  for (let action of getRowActions(pageName)) {
+    let oCell
+    oCell = row.addButton(action.title)
+    oCell.onTap = () => {
+      let comm = "model." + action.controller + "(path, editRowData)"  
+//       console.log("row comm: " + comm)
+      eval(comm)
+      console.log("Eval ok: " + comm)
+      
+      
+      updateEditRowTable(editRowTable, path, editRowData, message)  
+        .then(() => editRowTable.reload())
+    }    
   }
-  
-  
-  oCell = row.addButton("🆕 New row")
-  oCell = row.addButton("🗑 Delete row")
   editRowTable.addRow(row)
-  
-  for (let cell of appInfo.pages[pageName].cells) {
+  for (let cell of getCells(pageName)) {
     row  = new UITableRow()
     row.addText(cell.headerTitle + ":")
-    oCell = row.addButton(editRowData[cell.rowTitle])
-//     let headerTitle = cell.headerTitle
-    oCell.onTap = async () => {
-//       console.log("onTap cell")
-      editRowCell(pageName, cell.headerTitle, editRowData[cell.rowTitle])
-        .then((newValue) => {
-          editRowData[cell.rowTitle] = newValue
-          updateEditRowTable(editRowTable, path, editRowData, message)
-        }).then(() => editRowTable.reload())
-    }
+    let buttonText
+    if (cell.onTap === undefined) {
+      
+      if (editRowData[cell.rowTitle] === undefined) {
+        buttonText = "?"
+      } else {
+        buttonText = editRowData[cell.rowTitle]
+      }
+      oCell = row.addButton(buttonText)
+      
+  //     let headerTitle = cell.headerTitle
+      oCell.onTap = async () => {
+  //       console.log("onTap cell")
+        editRowCell(pageName, cell.headerTitle, editRowData[cell.rowTitle])
+          .then((newValue) => {
+            editRowData[cell.rowTitle] = newValue
+            updateEditRowTable(editRowTable, path, editRowData, message)
+          }).then(() => editRowTable.reload())
+        } 
+      } else {
+        row.addText("🔡 [list]")
+      }
     editRowTable.addRow(row)
   }
 
@@ -350,6 +383,8 @@ async function editRowCell(pageName, rowTitle, value) {
   if (action === -1) { return value }
   
 }
+// >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>> EDIT ROW 
+
 
 // async function addRow(pageName, newRowData) {  
 //   let addNewRowTable = new UITable()
@@ -464,19 +499,19 @@ async function editRowCell(pageName, rowTitle, value) {
 
 function hasToShow(element, mode) {
   let modes = []
-  modes.push({"element": "page-header", "show": ["read-only", "show-actions", "edit-rows"]})
+//   modes.push({"element": "page-header", "show": ["read-only", "show-actions", "edit-rows"]})
   modes.push({"element": "unhide-actions-button", "show": ["read-only"]})
   modes.push({"element": "hide-actions-button", "show": ["show-actions", "edit-rows"]})
-  modes.push({"element": "add-row-button", "show": ["show-actions", "edit-rows"]})
-  modes.push({"element": "edit-rows-button", "show": ["show-actions"]})
-  modes.push({"element": "delete-rows-button", "show": []})
-  modes.push({"element": "edit-row-button", "show": ["edit-rows"]})
-  modes.push({"element": "delete-row-button", "show": ["delete-rows"]})
+//   modes.push({"element": "add-row-button", "show": ["show-actions", "edit-rows"]})
+//   modes.push({"element": "edit-rows-button", "show": ["show-actions"]})
+//   modes.push({"element": "delete-rows-button", "show": []})
+//   modes.push({"element": "edit-row-button", "show": ["edit-rows"]})
+//   modes.push({"element": "delete-row-button", "show": ["delete-rows"]})
   
 //   modes.push({"element": "edit-row-header", "show": ["edit-rows"]})
-  modes.push({"element": "delete-row-header", "show": ["delete-rows"]})
+//   modes.push({"element": "delete-row-header", "show": ["delete-rows"]})
   
-  modes.push({"element": "content-edit-cells", "show": ["edit-rows"]})
+//   modes.push({"element": "content-edit-cells", "show": ["edit-rows"]})
   
   for (let m of modes) {
     if (m.element === element) {
@@ -501,10 +536,84 @@ function getAppInfo(app) {
   return appInfo
 }
 
-function hasHeader(pageName) {
-  return appInfo.pages[pageName].showHeader
+function hideListTitle(pageName) {
+  return appInfo.pages[pageName].hideListTitle
+}
+
+function hideListHeaders(pageName) {
+  return appInfo.pages[pageName].hideListHeaders
 }
 
 function isPageEditable(pageName) {
   return appInfo.pages[pageName].editable
+}
+
+function getCells(pageName) {
+  return appInfo.pages[pageName].cells
+}
+
+function getListActions(pageName) {
+  let actions = []
+  let listActions = []
+  // Standards actions
+  let hasNewRowAction = false
+  
+  for (listAction of appInfo.pages[pageName].listActions) {
+    if (listAction.title === "🆕 New row") { hasNewRowAction = true }
+    listActions.push(listAction)
+  }
+  
+  if (!hasNewRowAction) { 
+    listActions.push({"title": "🆕 New row", "controller": "", "hide": false})
+  }
+  
+  for (listAction of listActions) {
+    let action = {}
+    if (listAction.title === "🆕 New row" && listAction.controller === "") {
+      action.command = "editRow(path + \"/\", {}).then(() => { updateTable(path, mode) }).then(() => { table.reload() })"
+    } else { 
+        action.command = "model." + action.controller + "(path, editRowData)"
+    }
+    if (!listAction.hide || listAction.hide === undefined) {
+      action.title = listAction.title
+      actions.push(action)
+    }
+  }
+  
+  return actions
+}
+
+function getRowActions(pageName) {
+  let actions = []
+  let listActions = []
+  // Standards routines
+  let hasSaveAction = false
+  let hasDeleteAction = false
+  
+  for (listAction of appInfo.pages[pageName].rowActions) {
+    if (listAction.title === "💾 Save changes") { 
+      hasSaveAction = true
+      if (listAction.controller === "") {listAction.controller = "setRowData"}
+     }
+    if (listAction.title === "🗑 Delete row") { 
+      hasDeleteAction = true
+      if (listAction.controller === "") {listAction.controller = "removeRow"}
+     }
+    listActions.push(listAction)
+  }
+  
+  if (!hasSaveAction) { 
+    listActions.push({"title": "💾 Save changes", "controller": "setRowData", "hide": false})
+  }
+  
+  if (!hasDeleteAction) { 
+    listActions.push({"title": "🗑 Delete row", "controller": "removeRow", "hide": false})
+  }
+  
+  for (listAction of listActions) {
+    let action = {}
+    if (!listAction.hide) { actions.push(listAction) }
+  }
+  
+  return actions
 }
